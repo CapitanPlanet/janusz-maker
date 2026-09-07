@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { CreateProject, ReadJSON, WriteJSON, ListFiles, ListAssets, DeleteFile } from '../../wailsjs/go/main/App'
+import { CreateProject, ReadJSON, WriteJSON, ListFiles, ListAssets, ListAudioAssets, DeleteFile } from '../../wailsjs/go/main/App'
 
 export interface StatDef { id: string; name: string; initial: number }
 interface Choice {
@@ -55,6 +55,37 @@ const DEFAULT_STATS: StatDef[] = [
   { id: 'REPUTACJA', name: 'REPUTACJA', initial: 0 },
 ]
 
+const LEGACY_MAP: Record<string,string> = { A:'CEBULA', B:'WSTYD', C:'PORTFEL', D:'REPUTACJA', PORTFEL1:'PORTFEL' }
+
+function toSafeName(raw: string): string {
+  const up = raw.toString().trim().toUpperCase()
+  return LEGACY_MAP[up] || up
+}
+
+function getBasename(path: string): string {
+  return path.replace(/\\/g,'/').split('/').pop() || ''
+}
+
+function isImageOfType(path: string, prefix: 'bg_'|'re_'|'av_'): boolean {
+  const base = getBasename(path).toLowerCase()
+  return base.startsWith(prefix)
+}
+
+function fixRelPath(input: string): string {
+  if (!input) return ''
+  let p = input.replace(/\\/g,'/').trim()
+  // Strip absolute Windows / Unix
+  if (p.includes(':') || p.startsWith('/') || p.startsWith('C:')) {
+    // keep only images/... or sounds/... or just filename
+    const idxImg = p.toLowerCase().lastIndexOf('images/')
+    const idxSnd = p.toLowerCase().lastIndexOf('sounds/')
+    if (idxImg >= 0) p = p.substring(idxImg)
+    else if (idxSnd >= 0) p = p.substring(idxSnd)
+    else p = 'images/' + p.split('/').pop()!
+  }
+  return p.replace(/^\/+/, '')
+}
+
 export const useProjectStore = defineStore('project', {
   state: () => ({
     projectPath: null as string | null,
@@ -69,15 +100,19 @@ export const useProjectStore = defineStore('project', {
     ui: { showAvatarEditor: false }
   }),
   getters: {
-    isProjectLoaded: (s) =>!!s.projectPath,
+    isProjectLoaded: (s) => !!s.projectPath,
     currentDayScenes: (s) => s.days[s.currentDay] || [],
-    currentScene: (s) => { const scenes = s.days[s.currentDay] || []; return scenes.find(x => x.Id === s.currentSceneId) || null },
+    currentScene: (s) => {
+      const scenes = s.days[s.currentDay] || []
+      return scenes.find(x => x.Id === s.currentSceneId) || null
+    },
     sceneIdsInCurrentDay: (s) => (s.days[s.currentDay] || []).map(x => x.Id),
     dayFileList: (s) => Object.keys(s.days),
-    backgroundAssets: (s) => s.assets.all.filter(a => a.includes('bg_')),
-    reactionAssets: (s) => s.assets.all.filter(a => a.includes('re_')),
-    avatarAssets: (s) => s.assets.all.filter(a => a.includes('av_')),
-    availableBackgrounds: (s) => s.assets.all.filter(a => a.includes('bg_')),
+    // FIX: filtruj po basename, nie includes
+    backgroundAssets: (s) => s.assets.images.filter(a => isImageOfType(a, 'bg_')),
+    reactionAssets: (s) => s.assets.images.filter(a => isImageOfType(a, 're_')),
+    avatarAssets: (s) => s.assets.images.filter(a => isImageOfType(a, 'av_')),
+    availableBackgrounds: (s) => s.assets.images.filter(a => isImageOfType(a, 'bg_')),
     availableSounds: (s) => s.assets.sounds,
     sortedAvatarRules(s): AvatarRule[] { return [...s.avatarSystem.rules].sort((a,b) => b.priority - a.priority) },
     statList: (s) => s.statsSystem.stats,
@@ -85,77 +120,81 @@ export const useProjectStore = defineStore('project', {
   },
   actions: {
     selectScene(id: string) { this.currentSceneId = id },
-    ensureChoiceIds(scene: Scene) { scene.Choices?.forEach(c => { if(!c.id) c.id = crypto.randomUUID() }) },
+    ensureChoiceIds(scene: Scene) {
+      scene.Choices?.forEach(c => { if(!c.id) c.id = (crypto as any).randomUUID?.() || Math.random().toString(36).slice(2) })
+    },
     createEmptyStats(): Record<string, number> {
-      const obj: Record<string, number> = {};
-      this.statsSystem.stats.forEach(s => { obj[s.name] = 0 });
+      const obj: Record<string, number> = {}
+      this.statsSystem.stats.forEach(s => { obj[s.name] = 0 })
       return obj
     },
     ensureStatsSystem() {
-      if (!this.statsSystem ||!Array.isArray(this.statsSystem.stats) ||!this.statsSystem.stats.length) {
-        this.statsSystem = { stats: [...DEFAULT_STATS] };
+      if (!this.statsSystem || !Array.isArray(this.statsSystem.stats) || !this.statsSystem.stats.length) {
+        this.statsSystem = { stats: [...DEFAULT_STATS] }
         return
       }
-      const used = new Set<string>();
+      const used = new Set<string>()
       const fixed: StatDef[] = []
       for(const s of this.statsSystem.stats){
-        if(!s.name &&!s.id) continue
-        const name = (s.name || s.id || '').toString().toUpperCase().replace('PORTFEL1','PORTFEL')
-        const legacy: Record<string,string> = { A:'CEBULA', B:'WSTYD', C:'PORTFEL', D:'REPUTACJA', CEBULA:'CEBULA', WSTYD:'WSTYD', PORTFEL:'PORTFEL', REPUTACJA:'REPUTACJA' }
-        const finalName = legacy[name] || name
+        if(!s.name && !s.id) continue
+        const finalName = toSafeName((s.name || s.id) as string)
         if(!finalName) continue
         if(used.has(finalName)) continue
         used.add(finalName)
-        fixed.push({ id: finalName, name: finalName, initial: s.initial?? 0 })
+        fixed.push({ id: finalName, name: finalName, initial: s.initial ?? 0 })
       }
-      this.statsSystem.stats = fixed.length? fixed : [...DEFAULT_STATS]
+      this.statsSystem.stats = fixed.length ? fixed : [...DEFAULT_STATS]
     },
     ensureAvatarSystem() {
       this.ensureStatsSystem()
       if (!this.avatarSystem) this.avatarSystem = { default: '', rules: [] }
       if (!this.avatarSystem.rules) this.avatarSystem.rules = []
-      this.avatarSystem.default = (this.avatarSystem.default || '').replace(/\\/g,'/')
-      if(!this.avatarSystem.default && this.avatarAssets.length > 0){ this.avatarSystem.default = this.avatarAssets[0] }
+      this.avatarSystem.default = fixRelPath(this.avatarSystem.default || '')
+      if(!this.avatarSystem.default && this.avatarAssets.length > 0){
+        this.avatarSystem.default = this.avatarAssets[0]
+      }
+      // Fix legacy stat keys in rules
       this.avatarSystem.rules.forEach(r=>{
         if(r.if){
           const newIf: Record<string, ConditionOp> = {}
           for(const [k,v] of Object.entries(r.if)){
-            const up = k.toUpperCase()
-            const legacy: Record<string,string> = { A:'CEBULA', B:'WSTYD', C:'PORTFEL', D:'REPUTACJA' }
-            const final = legacy[up] || up
+            const final = toSafeName(k)
             if(this.statsSystem.stats.some(s=>s.name===final)){
               newIf[final] = v as ConditionOp
             }
           }
           r.if = newIf
         }
+        if(r.use) r.use = fixRelPath(r.use)
       })
     },
     migrateChoiceStats(choice: any) {
       if (!choice.Stats) choice.Stats = {}
       const newStats: Record<string, number> = {}
       for (const [k,v] of Object.entries(choice.Stats as Record<string,any>)) {
-        if(typeof v!== 'number') continue
-        const upper = k.toString().toUpperCase()
-        const legacy: Record<string,string> = { A:'CEBULA', B:'WSTYD', C:'PORTFEL', D:'REPUTACJA' }
-        const finalKey = legacy[upper] || upper
+        if(typeof v !== 'number') continue
+        const finalKey = toSafeName(k)
         if(this.statsSystem.stats.some(s=>s.name===finalKey)){
           newStats[finalKey] = v as number
         }
       }
-      delete choice.Cebula; delete choice.Wstyd; delete choice.Portfel; delete choice.Reputacja
-      delete choice.cebula; delete choice.wstyd; delete choice.portfel; delete choice.reputacja
-      delete choice.a; delete choice.b; delete choice.c; delete choice.d
-      delete choice.A; delete choice.B; delete choice.C; delete choice.D
+      // cleanup legacy props
+      const toDelete = ['Cebula','Wstyd','Portfel','Reputacja','cebula','wstyd','portfel','reputacja','a','b','c','d','A','B','C','D']
+      toDelete.forEach(k => delete choice[k])
       choice.Stats = newStats
       this.statsSystem.stats.forEach(s=>{ if(choice.Stats[s.name]==null) choice.Stats[s.name]=0 })
+      // FIX: fix paths in choice
+      if(choice.ReactionImage) choice.ReactionImage = fixRelPath(choice.ReactionImage)
+      if(choice.SoundFile) choice.SoundFile = fixRelPath(choice.SoundFile)
     },
     normalizeScene(scene: Scene): Scene {
+      // FIX: fix all asset paths in scene
+      if(scene.Background) scene.Background = fixRelPath(scene.Background)
+
       const isEnd = scene.Id.startsWith('koniec_dnia_') || scene.Id.startsWith('koniec_dnia') || scene.IsEndDay || scene.Type === 'end_of_day'
       if (isEnd) {
         scene.IsEndDay = true
         scene.Type = 'end_of_day'
-        // NIE nadpisuj jeśli user ustawił custom branching jak "bezrobocie"
         if (!scene.NextDayId) {
           const dayNum = scene.Day || parseInt(this.currentDay.replace('day','')) || 1
           scene.NextDayId = `day${dayNum+1}`
@@ -167,7 +206,6 @@ export const useProjectStore = defineStore('project', {
           scene.Transfers.keep_stats = this.statsSystem.stats.map(s=>s.name)
           if(!scene.Transfers.keep_flags) scene.Transfers.keep_flags = []
         }
-        // jeśli scena końca ma 0 wyborów - dodaj domyślny
         if(!scene.Choices?.length){
           scene.Choices = [{
             Text: 'Śpij',
@@ -180,12 +218,23 @@ export const useProjectStore = defineStore('project', {
           }]
         }
       }
-      if (scene.IsEndDay &&!scene.Type) scene.Type = 'end_of_day'
+      if (scene.IsEndDay && !scene.Type) scene.Type = 'end_of_day'
       return scene
     },
     async loadAssets() {
-      if (!this.projectPath) { this.assets.all=[]; this.assets.images=[]; return }
-      try { const list = await ListAssets(this.projectPath); this.assets.all = list||[]; this.assets.images = list||[] } catch { this.assets.all=[]; this.assets.images=[] }
+      if (!this.projectPath) { this.assets.all=[]; this.assets.images=[]; this.assets.sounds=[]; return }
+      try {
+        const [images, sounds] = await Promise.all([
+          ListAssets(this.projectPath).catch(()=>[] as string[]),
+          ListAudioAssets(this.projectPath).catch(()=>[] as string[])
+        ])
+        // FIX: ListAssets returns images, ListAudioAssets returns sounds - merge correctly
+        this.assets.images = (images || []).map(fixRelPath)
+        this.assets.sounds = (sounds || []).map(fixRelPath)
+        this.assets.all = [...this.assets.images, ...this.assets.sounds]
+      } catch {
+        this.assets.all=[]; this.assets.images=[]; this.assets.sounds=[]
+      }
       this.ensureAvatarSystem()
     },
     async createProjectAtPath(p: string, name: string) {
@@ -206,24 +255,33 @@ export const useProjectStore = defineStore('project', {
       try {
         const metaRaw = await ReadJSON(`${path}/project.janproj`)
         const parsed = JSON.parse(metaRaw)
-        this.meta = { gameName: parsed.gameName||'', author: parsed.author||'', version: parsed.version||'1.0.0', engineVersion: parsed.engineVersion||'2.0.0', startDay: parsed.startDay||'day1', startScene: parsed.startScene||'start' }
+        this.meta = {
+          gameName: parsed.gameName||'',
+          author: parsed.author||'',
+          version: parsed.version||'1.0.0',
+          engineVersion: parsed.engineVersion||'2.0.0',
+          startDay: parsed.startDay||'day1',
+          startScene: parsed.startScene||'start'
+        }
         let incomingStats: StatDef[] = parsed.statsSystem?.stats || [...DEFAULT_STATS]
         const migrated: StatDef[] = incomingStats.map(s=>{
-          const raw = (s.name||s.id||'').toString().toUpperCase()
-          const legacy: Record<string,string> = { A:'CEBULA', B:'WSTYD', C:'PORTFEL', D:'REPUTACJA' }
-          const finalName = legacy[raw] || raw.replace('PORTFEL1','PORTFEL')
+          const finalName = toSafeName((s.name||s.id||'').toString())
           return { id: finalName, name: finalName, initial: s.initial??0 }
         }).filter(s=>s.name)
-        this.statsSystem = { stats: migrated.length? migrated : [...DEFAULT_STATS] }
+        this.statsSystem = { stats: migrated.length ? migrated : [...DEFAULT_STATS] }
         this.ensureStatsSystem()
-        this.avatarSystem = { default: parsed.avatarSystem?.default||'', rules: Array.isArray(parsed.avatarSystem?.rules)?parsed.avatarSystem.rules:[] }
+        this.avatarSystem = {
+          default: fixRelPath(parsed.avatarSystem?.default||''),
+          rules: Array.isArray(parsed.avatarSystem?.rules)?parsed.avatarSystem.rules:[]
+        }
         this.avatarSystem.rules.forEach((r:any)=>{
-          if(!r.id) r.id = crypto.randomUUID()
+          if(!r.id) r.id = (crypto as any).randomUUID?.() || Math.random().toString(36).slice(2)
           if(r.priority==null) r.priority = 0
+          if(r.use) r.use = fixRelPath(r.use)
         })
         let dayFiles: string[] = []
         try { dayFiles = await ListFiles(`${path}/Data`, '.json') || [] } catch { dayFiles = ['day1.json'] }
-        dayFiles = dayFiles.filter(f =>!f.startsWith('_'))
+        dayFiles = dayFiles.filter(f => !f.startsWith('_') && !f.startsWith('.'))
         this.days = {}
         for (const file of dayFiles) {
           const dayName = file.replace('.json','')
@@ -241,11 +299,11 @@ export const useProjectStore = defineStore('project', {
       } catch (e) { console.error(e); this.projectPath = null; throw e }
     },
     async scanAssets() {
-      if (!this.projectPath) return
-      try { const mp3 = await ListFiles(`${this.projectPath}/sounds`, '.mp3')||[]; const wav = await ListFiles(`${this.projectPath}/sounds`, '.wav')||[]; this.assets.sounds=[...mp3,...wav] } catch { this.assets.sounds=[] }
+      // DEPRECATED - use loadAssets, kept for compatibility
+      await this.loadAssets()
     },
     async saveProject() {
-      if (!this.projectPath ||!this.meta) return
+      if (!this.projectPath || !this.meta) return
       this.saveStatus = 'Zapisywanie...'
       try {
         this.ensureAvatarSystem(); this.ensureStatsSystem()
@@ -255,13 +313,27 @@ export const useProjectStore = defineStore('project', {
             scene.Choices?.forEach((c:any) => this.migrateChoiceStats(c))
           })
         })
-        const toSave = {...this.meta, avatarSystem: { default: this.avatarSystem.default, rules: this.avatarSystem.rules }, statsSystem: { stats: this.statsSystem.stats } }
+        const toSave = {
+          ...this.meta,
+          avatarSystem: { default: fixRelPath(this.avatarSystem.default), rules: this.avatarSystem.rules.map(r=>({...r, use: fixRelPath(r.use)})) },
+          statsSystem: { stats: this.statsSystem.stats }
+        }
         await WriteJSON(`${this.projectPath}/project.janproj`, JSON.stringify(toSave, null, 2))
         for (const dayFile of Object.keys(this.days)) {
-          const cleaned = this.days[dayFile].map(scene => ({...scene, Choices: scene.Choices?.map((c:any) => { const {id,...cleanChoice}=c; return cleanChoice }) }))
+          const cleaned = this.days[dayFile].map(scene => ({
+            ...scene,
+            Background: fixRelPath(scene.Background || ''),
+            Choices: scene.Choices?.map((c:any) => {
+              const {id,...cleanChoice}=c
+              return {
+                ...cleanChoice,
+                ReactionImage: fixRelPath(cleanChoice.ReactionImage||''),
+                SoundFile: fixRelPath(cleanChoice.SoundFile||'')
+              }
+            })
+          }))
           await WriteJSON(`${this.projectPath}/Data/${dayFile}.json`, JSON.stringify(cleaned, null, 2))
         }
-        // MANIFEST - lista dni dla silnika + branching
         const manifest = {
           days: Object.keys(this.days),
           startDay: this.meta.startDay || Object.keys(this.days)[0] || 'day1',
@@ -274,7 +346,9 @@ export const useProjectStore = defineStore('project', {
     },
     addStat() {
       const used = new Set(this.statsSystem.stats.map(s=>s.name))
-      const newName = `STAT_${Date.now().toString(36).toUpperCase()}`
+      let newName = `STAT_${Date.now().toString(36).toUpperCase()}`
+      let counter = 0
+      while(used.has(newName) && counter < 10){ newName = `STAT_${Date.now().toString(36).toUpperCase()}_${counter++}` }
       if(!used.has(newName)){
         this.statsSystem.stats.push({ id: newName, name: newName, initial: 0 })
       }
@@ -285,22 +359,31 @@ export const useProjectStore = defineStore('project', {
       this.statsSystem.stats = this.statsSystem.stats.filter(s => s.id!==id && s.name!==id)
       Object.values(this.days).forEach(scenes => scenes.forEach(scene => scene.Choices?.forEach((c:any) => { if(c.Stats && c.Stats[id]!=null) delete c.Stats[id] })))
     },
-    setDefaultAvatar(path: string) { this.avatarSystem.default = path.replace(/\\/g,'/') },
+    setDefaultAvatar(path: string) { this.avatarSystem.default = fixRelPath(path) },
     addAvatarRule(imagePath?: string) {
       const maxPrio = Math.max(0,...this.avatarSystem.rules.map(r => r.priority))
       const firstStat = this.statsSystem.stats[0]?.name || 'CEBULA'
-      this.avatarSystem.rules.push({ id: crypto.randomUUID(), use: (imagePath || this.avatarAssets[0] || this.avatarSystem.default || '').replace(/\\/g,'/'), if: { [firstStat]: { gte: 50 } }, priority: maxPrio+10 })
+      this.avatarSystem.rules.push({
+        id: (crypto as any).randomUUID?.() || Math.random().toString(36).slice(2),
+        use: fixRelPath(imagePath || this.avatarAssets[0] || this.avatarSystem.default || ''),
+        if: { [firstStat]: { gte: 50 } },
+        priority: maxPrio+10
+      })
     },
     updateAvatarRule(ruleId: string, patch: Partial<AvatarRule>) { const rule = this.avatarSystem.rules.find(r => r.id===ruleId); if(rule) Object.assign(rule, patch) },
     deleteAvatarRule(ruleId: string) { this.avatarSystem.rules = this.avatarSystem.rules.filter(r => r.id!==ruleId) },
-    closeProject() { this.projectPath=null; this.meta=null; this.avatarSystem={default:'',rules:[]}; this.statsSystem={stats:[...DEFAULT_STATS]}; this.days={}; this.currentDay='day1'; this.currentSceneId=null; this.assets={all:[],images:[],sounds:[]} },
+    closeProject() {
+      this.projectPath=null; this.meta=null; this.avatarSystem={default:'',rules:[]};
+      this.statsSystem={stats:[...DEFAULT_STATS]}; this.days={}; this.currentDay='day1'; this.currentSceneId=null;
+      this.assets={all:[],images:[],sounds:[]}
+    },
     addSceneToCurrentDay(sceneId?: string, preset: Partial<Scene> = {}) {
       const newId = sceneId || `scene_${Date.now()}`
       const currentDayNum = parseInt(this.currentDay.replace('day','')) || 1
       const base: Scene = {
         Id: newId,
         SceneTitle: preset.SceneTitle || newId,
-        Background: preset.Background || '',
+        Background: fixRelPath(preset.Background || ''),
         Text: preset.Text || '',
         Choices: preset.Choices || [],
         IsEndDay: preset.IsEndDay || false,
@@ -337,7 +420,16 @@ export const useProjectStore = defineStore('project', {
       this.currentSceneId=newId
       this.ensureChoiceIds(newScene)
     },
-    duplicateScene(sceneId: string) { const scenes = this.days[this.currentDay]; if(!scenes) return; const toCopy = scenes.find(s => s.Id===sceneId); if(!toCopy) return; const copy = JSON.parse(JSON.stringify(toCopy)); copy.Id=`${toCopy.Id}_copy_${Date.now()}`; copy.SceneTitle=`${toCopy.SceneTitle||sceneId} - Kopia`; this.ensureChoiceIds(copy); scenes.splice(scenes.findIndex(s=>s.Id===sceneId)+1,0,copy); this.currentSceneId=copy.Id },
+    duplicateScene(sceneId: string) {
+      const scenes = this.days[this.currentDay]; if(!scenes) return;
+      const toCopy = scenes.find(s => s.Id===sceneId); if(!toCopy) return;
+      const copy = JSON.parse(JSON.stringify(toCopy));
+      copy.Id=`${toCopy.Id}_copy_${Date.now()}`;
+      copy.SceneTitle=`${toCopy.SceneTitle||sceneId} - Kopia`;
+      this.ensureChoiceIds(copy);
+      scenes.splice(scenes.findIndex(s=>s.Id===sceneId)+1,0,copy);
+      this.currentSceneId=copy.Id
+    },
     deleteScene(sceneId: string) {
       const scenes=this.days[this.currentDay];
       if(!scenes||scenes.length<=1){alert('Nie możesz usunąć ostatniej sceny');return}
@@ -350,14 +442,15 @@ export const useProjectStore = defineStore('project', {
     },
     updateCurrentScene(field: keyof Scene, value: any) {
       if(!this.currentScene) return;
+      if(field==='Background' || field==='NextDayId' || field==='NextDay'){
+        value = fixRelPath(value as string)
+      }
       (this.currentScene as any)[field]=value
-      // pozwól na custom nazwy jak "bezrobocie" - nie parsuj
       if (this.currentScene.IsEndDay && (field === 'NextDayId' || field === 'NextDay')) {
         const clean = (value as string).replace('.json','').trim()
         this.currentScene.NextDayId = clean
         this.currentScene.NextDay = clean
-        // synchronizuj też pierwszy choice jeśli ma END_DAY
-        if (this.currentScene.Choices?.[0]?.Next === 'END_DAY' &&!this.currentScene.Choices[0].NextDayId) {
+        if (this.currentScene.Choices?.[0]?.Next === 'END_DAY' && !this.currentScene.Choices[0].NextDayId) {
           this.currentScene.Choices[0].NextDayId = clean
         }
       }
@@ -372,7 +465,7 @@ export const useProjectStore = defineStore('project', {
           SceneTitle:`Dzień ${dayNum} Start`,
           Background:'images/bg_tutorial.webp',
           Text:`Początek dnia ${dayNum}`,
-          Choices:[{ id: crypto.randomUUID(), Text:'Dalej', Next:endId, Stats: this.createEmptyStats() }],
+          Choices:[{ id: (crypto as any).randomUUID?.() || Math.random().toString(36).slice(2), Text:'Dalej', Next:endId, Stats: this.createEmptyStats() }],
           Type:'normal' as const,
           Day: dayNum
         },
@@ -387,7 +480,7 @@ export const useProjectStore = defineStore('project', {
           NextDayId: `day${dayNum+1}`,
           NextDay: `day${dayNum+1}`,
           Transfers: { keep_flags: [], keep_stats: this.statsSystem.stats.map(s=>s.name), summary_text: '' },
-          Choices:[{ id: crypto.randomUUID(), Text:'Śpij', Next:'END_DAY', NextDayId: `day${dayNum+1}`, Stats: this.createEmptyStats(), ReactionText:'', ReactionImage:'', SoundFile:'' }]
+          Choices:[{ id: (crypto as any).randomUUID?.() || Math.random().toString(36).slice(2), Text:'Śpij', Next:'END_DAY', NextDayId: `day${dayNum+1}`, Stats: this.createEmptyStats(), ReactionText:'', ReactionImage:'', SoundFile:'' }]
         }
       ];
       this.currentDay=dayId; this.currentSceneId=`start_d${dayNum}`
@@ -397,7 +490,7 @@ export const useProjectStore = defineStore('project', {
       if(!this.currentScene.Choices) this.currentScene.Choices=[];
       const isEnd = this.currentScene.IsEndDay
       this.currentScene.Choices.push({
-        id: crypto.randomUUID(),
+        id: (crypto as any).randomUUID?.() || Math.random().toString(36).slice(2),
         Text: isEnd? 'Idź do...' : 'Nowy wybór',
         Next: isEnd? 'END_DAY' : this.currentScene.Id,
         NextDayId: isEnd? this.currentScene.NextDayId : undefined,
