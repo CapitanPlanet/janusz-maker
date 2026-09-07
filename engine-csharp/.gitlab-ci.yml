@@ -1,0 +1,17 @@
+image: mcr.microsoft.com/dotnet/sdk:9.0
+
+pages:
+  stage: deploy
+  before_script:
+    - dotnet workload install wasm-tools
+  script:
+    - dotnet run --project Tools/BundleScenes.csproj -c Release -- $CI_PROJECT_DIR
+    - dotnet publish JanuszSimulator.csproj -c Release -o out
+    - rm -rf public
+    - mv out/wwwroot public
+    - touch public/.nojekyll
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"

@@ -1,0 +1,147 @@
+@page "/"
+@inject GameEngine GameEngine
+@inject IJSRuntime JS
+@implements IDisposable
+
+<PageTitle>Janusz Simulator 97</PageTitle>
+
+<div class="piwo-placeholder" @onclick="PostawPiwoClick">
+    <span class="piwo-ikona">🍺</span>
+    <span class="piwo-text">Postaw Januszowi piwo</span>
+    <span class="piwo-cena">3zł</span>
+</div>
+
+@if (GameEngine.GameState != null)
+{
+    <div class="game-container" @onclick="CloseDrawer">
+        <img src="@GameEngine.GameState.BackgroundImage" class="background" />
+        
+        <div @onclick:stopPropagation="true">
+            <JanuszPanel GameState="GameEngine.GameState" />
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(GameEngine.GameState.ReactionText))
+        {
+            <div class="reaction-overlay" @onclick="SkipReaction">
+                @if (!string.IsNullOrWhiteSpace(GameEngine.GameState.ReactionImage))
+                {
+                    <img src="@GameEngine.GameState.ReactionImage" alt="Janusz" />
+                }
+                <div class="reaction-text">@GameEngine.GameState.ReactionText</div>
+            </div>
+        }
+
+        <div class="bottom-ui @(showChoices ? "open" : "")" @onclick:stopPropagation="true">
+            <div class="narration-box">
+                <div class="scene-title">@GameEngine.GameState.SceneTitle</div>
+                <p class="narration-text">@GameEngine.GameState.NarrationText</p>
+            </div>
+            <div class="choices-container desktop-only">
+                @if (!GameEngine.GameState.IsFinished)
+                {
+                    @foreach (var choice in GameEngine.GetAvailableChoices())
+                    {
+                        <button class="choice-btn" @onclick="() => MakeChoice(choice)">@choice.Text</button>
+                    }
+                }
+                else
+                {
+                    <button class="choice-btn restart-btn" @onclick="RestartGame">▶ GRAJ PONOWNIE</button>
+                    <button class="choice-btn" @onclick="ShowStats">📊 STATYSTYKI KOŃCOWE</button>
+                }
+            </div>
+        </div>
+
+        <div class="mobile-choice-handle" @onclick:stopPropagation="true" @onclick="ToggleChoices">
+            <span>@(showChoices ? "▼ Schowaj" : $"▲ {(GameEngine.GameState.IsFinished ? "KONIEC GRY" : $"Wybierz akcję ({GameEngine.GetAvailableChoices().Count()})")}")</span>
+        </div>
+
+        <div class="choices-drawer @(showChoices ? "open" : "")" @onclick:stopPropagation="true">
+            <div class="drawer-header" @onclick="ToggleChoices"><div class="drag-bar"></div></div>
+            
+            <div class="narration-box drawer-narration">
+                <div class="scene-title">@GameEngine.GameState.SceneTitle</div>
+                <p class="narration-text">@GameEngine.GameState.NarrationText</p>
+            </div>
+
+            <div class="choices-container mobile-only">
+                @if (!GameEngine.GameState.IsFinished)
+                {
+                    @foreach (var choice in GameEngine.GetAvailableChoices())
+                    {
+                        <button class="choice-btn" @onclick="async () => { showChoices = false; await MakeChoice(choice); }">@choice.Text</button>
+                    }
+                }
+                else
+                {
+                    <button class="choice-btn restart-btn" @onclick="async () => { showChoices = false; await RestartGame(); }">▶ GRAJ PONOWNIE</button>
+                    <button class="choice-btn" @onclick="() => { showChoices = false; ShowStats(); }">📊 STATYSTYKI KOŃCOWE</button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="tvp-ticker"><div class="ticker-content"><span>@GetTickerNews()</span></div><AudioControls /></div>
+}
+
+@code {
+    private bool showChoices = false;
+    private System.Threading.Timer? narratorTimer;
+    private Random rnd = new Random();
+    private bool gameStarted = false;
+
+    private void ToggleChoices() => showChoices = !showChoices;
+    private void CloseDrawer() { if (showChoices) showChoices = false; }
+
+    private async Task PostawPiwoClick() => await JS.InvokeVoidAsync("open", "https://tipply.pl/@kapitanplaneta", "_blank");
+    
+    private string GetTickerNews() {
+        if (GameEngine.GameState == null) return "TVP1 - WIADOMOSCI";
+        var s = GameEngine.GameState.Stats; var defs = GameEngine.GameState.StatDefs; var scene = GameEngine.GameState.CurrentScene?.Id ?? "";
+        var news = new List<string> { "PILNE: Janusz wyszedl z domu o 6:47" };
+        foreach(var d in defs) news.Add($"{d.name}: {s.Get(d.id)}pkt");
+        if (scene == "tramwaj") news.Add("KOMUNIKACJA: Awantura w tramwaju linii 10");
+        if (scene == "biedronka") news.Add("GOSPODARKA: Parowki w promocji -12zl");
+        if (scene == "praca") news.Add("PRZEMYSL: Tasma stanela, Janusz naprawia");
+        if (scene == "szef") news.Add("BIZNES: Premia czy parowki?");
+        if (scene == "kebab") news.Add("IMIGRACJA: Turek podniosl ceny");
+        if (scene == "urzad") news.Add("PODATKI: Janusz sklada PIT");
+        if (scene == "blok") news.Add("SPOLECZENSTWO: Sasiadka skarży sie na smietnik");
+        if (scene == "wieczor") news.Add("RODZINA: Grażyna żąda wypłaty");
+        if (s.Get("a") > 50) news.Add("SUKCES: Janusz mistrzem cebuli");
+        if (s.Get("d") < 50) news.Add("BIEDA: Portfel swieci pustkami");
+        news.Add("POGODA: -5C, otwieraj okna"); news.Add("SPORT: Reprezentacja przegrala"); news.Add("TVP: Za chwile Teleexpress");
+        return string.Join(" *** ", news);
+    }
+
+    private async Task MakeChoice(Choice choice) {
+        if (!gameStarted) { gameStarted = true; _ = JS.InvokeVoidAsync("JanuszAudio.playMusic", "sounds/s1.mp3"); StartNarrator(); }
+        await GameEngine.MakeChoice(choice);
+    }
+
+    private void SkipReaction() => GameEngine.SkipReaction();
+
+    private async Task RestartGame() { StopNarrator(); _ = JS.InvokeVoidAsync("JanuszAudio.playMusic", ""); _ = JS.InvokeVoidAsync("JanuszAudio.playVoice", ""); gameStarted = false; await GameEngine.LoadGame(); }
+
+    private void StopNarrator() { narratorTimer?.Dispose(); narratorTimer = null; _ = JS.InvokeVoidAsync("JanuszAudio.playVoice", ""); }
+
+    private void ShowStats() {
+        var s = GameEngine.GameState.Stats; var defs = GameEngine.GameState.StatDefs; var sb = new System.Text.StringBuilder();
+        sb.AppendLine("KONIEC DNIA JANUSZA:\n"); foreach(var d in defs) sb.AppendLine($"{d.name}: {s.Get(d.id)}");
+        sb.AppendLine($"\nGrazyna jest {(s.Get("a") > 30 ? "DUMNA" : "WKURWIONA")}.");
+        GameEngine.GameState.NarrationText = sb.ToString(); StateHasChanged();
+    }
+
+    protected override async Task OnInitializedAsync() { await GameEngine.LoadGame(); GameEngine.StateChanged += OnStateChanged; }
+    private void OnStateChanged() => InvokeAsync(StateHasChanged);
+
+    private void StartNarrator() {
+        var firstDelay = rnd.Next(5000, 10000);
+        narratorTimer = new System.Threading.Timer(async _ => {
+            await InvokeAsync(async () => { var num = rnd.Next(1, 11); await JS.InvokeVoidAsync("JanuszAudio.playVoice", $"sounds/lektor/{num}.mp3"); });
+            var nextDelay = rnd.Next(45000, 90000); narratorTimer?.Change(nextDelay, Timeout.Infinite);
+        }, null, firstDelay, Timeout.Infinite);
+    }
+
+    public void Dispose() { StopNarrator(); GameEngine.StateChanged -= OnStateChanged; }
+}

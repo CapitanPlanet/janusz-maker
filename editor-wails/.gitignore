@@ -1,0 +1,26 @@
+echo "# Wails
+build/
+node_modules/
+frontend/node_modules/
+frontend/dist/
+wailsjs/
+*.log
+*.exe
+.DS_Store
+
+# Go
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Janusz
+recent.json" > .gitignore

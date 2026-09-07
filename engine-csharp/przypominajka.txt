@@ -1,0 +1,17 @@
+Pliki które mają zostać:
+- wwwroot/index.html          → tylko blazor.webassembly.js + janusz-audio.js
+- wwwroot/js/janusz-audio.js  → window.JanuszAudio z music + voice
+- Pages/Home.razor            → woła JanuszAudio.playMusic + playVoice
+- Shared/AudioControls.razor  → woła JanuszAudio.setMusicVol + setVoiceVol
+
+Komendy które działają:
+_ = JS.InvokeVoidAsync("JanuszAudio.playMusic", "sounds/s1.mp3");
+_ = JS.InvokeVoidAsync("JanuszAudio.playVoice", "sounds/lektor/3.mp3");
+_ = JS.InvokeVoidAsync("JanuszAudio.playVoice", ""); // STOP
+_ = JS.InvokeVoidAsync("JanuszAudio.setMusicVol", 0.3);
+_ = JS.InvokeVoidAsync("JanuszAudio.setVoiceVol", 0.7);
+
+Czego NIE ROBIĆ:
+- NIE dodawać <script> do index.html
+- NIE tworzyć new Audio() w C#
+- NIE używać januszMusic/januszNarrator

@@ -1,0 +1,24 @@
+{
+  "stats": [
+    {
+      "id": "a",
+      "name": "CEBULA",
+      "initial": 0
+    },
+    {
+      "id": "b",
+      "name": "WSTYD",
+      "initial": 0
+    },
+    {
+      "id": "c",
+      "name": "PORTFEL",
+      "initial": 0
+    },
+    {
+      "id": "d",
+      "name": "REPUTACJA",
+      "initial": 0
+    }
+  ]
+}

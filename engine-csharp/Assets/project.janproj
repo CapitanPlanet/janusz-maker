@@ -1,0 +1,36 @@
+{
+  "gameName": "00015",
+  "author": "",
+  "version": "1.0.0",
+  "engineVersion": "2.0.0",
+  "startDay": "day1",
+  "startScene": "start",
+  "avatarSystem": {
+    "default": "images/av_292278823_1225718934858214_8023927772400255460_n_(1).png",
+    "rules": []
+  },
+  "statsSystem": {
+    "stats": [
+      {
+        "id": "CEBULA",
+        "name": "CEBULA",
+        "initial": 0
+      },
+      {
+        "id": "WSTYD",
+        "name": "WSTYD",
+        "initial": 0
+      },
+      {
+        "id": "PORTFEL",
+        "name": "PORTFEL",
+        "initial": 0
+      },
+      {
+        "id": "REPUTACJA",
+        "name": "REPUTACJA",
+        "initial": 0
+      }
+    ]
+  }
+}

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <title>Janusz Simulator 97</title>
+    <base href="/" />
+    
+    <!-- CSS -->
+    <link href="css/app.css" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <!-- APP -->
+    <div id="app">
+        <div style="position: absolute; 
+                    top: 50%; 
+                    left: 50%; 
+                    transform: translate(-50%, -50%); 
+                    color: #00ff00; 
+                    font-family: 'Courier New', monospace;
+                    font-size: 18px;
+                    text-align: center;">
+            ŁADOWANIE JANUSZA...<br/>
+            <span style="font-size: 14px; color: #8b6f47;">6:47 PONIEDZIAŁEK</span>
+        </div>
+    </div>
+
+    <!-- ERROR UI -->
+    <div id="blazor-error-ui">
+        Wystąpił błąd. 
+        <a href="" class="reload">Przeładuj</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <!-- JS: TYLKO BLAZOR + NASZE AUDIO. KOLEJNOŚĆ WAŻNA -->
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script src="js/janusz-audio.js"></script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+[
+  {
+    "Id": "dom",
+    "Background": "images/dom.jpg",
+    "Text": "Grażyna sprawdza zakupy. 'Co jest nie tak z tym paragonem? Miały być parówki po 3,99!, chcesz nas zrujnować? co ty sobie myślisz głupi pijaku? A browara w promocji to sobie kupił!'",
+    "Choices": [
+      {
+        "Text": "Wyrzuciłem, i tak drogo",
+        "Next": "tramwaj",
+        "Cebula": 10,
+        "Wstyd": -10,
+        "Portfel": 0,
+        "Reputacja": 5,
+        "ReactionText": "Janusz wzrusza ramionami. Cebula rośnie.",
+        "ReactionImage": "images/janusz_wyrzucilem.jpg"
+      },
+      {
+        "Text": "Wiesz Grażyna, rybka lubi pływać... ano tak makreli też nie kupiłem",
+        "Next": "tramwaj",
+        "Cebula": 15,
+        "Wstyd": -5,
+        "Portfel": 0,
+        "Reputacja": 5,
+        "ReactionText": "Janusz się szczerzy z browarem w ręku.",
+        "ReactionImage": "images/janusz_rybka.jpg"
+      },
+      {
+        "Text": "Masz, przepraszam Grażyna",
+        "Next": "tramwaj",
+        "Cebula": -5,
+        "Wstyd": 10,
+        "Portfel": 0,
+        "Reputacja": -10,
+        "ReactionText": "Janusz składa ręce jak do modlitwy.",
+        "ReactionImage": "images/janusz_przepraszam.jpg"
+      },
+      {
+        "Text": "Ty to jesteś wariatka, zupełnie jak twoja matka!",
+        "Next": "tramwaj",
+        "Cebula": 20,
+        "Wstyd": -10,
+        "Portfel": 0,
+        "Reputacja": 20,
+        "ReactionText": "JANUSZ ODPALA TRYB BOSS FIGHT",
+        "ReactionImage": "images/janusz_wariatka.jpg"
+      }
+    ]
+  },
+{
+  "Id": "tramwaj",
+  "Background": "images/tramwaj.jpg",
+  "Text": "Czas jechać do pracy. Tramwaj dziesiątka, tłok jak na Marszu Niepodległości. Jakiś typ kaszle ci na kark.",
+  "Choices": [
+    {
+      "Text": "Odwracasz się i mówisz 'zasłoń mordę'",
+      "Next": "biedronka",
+      "Cebula": 5,
+      "Wstyd": -5,
+      "Portfel": 0,
+      "Reputacja": -5,
+      "ReactionText": "Cały wagon patrzy.",
+      "ReactionImage": "images/janusz_wariatka.jpg"
+    },
+    {
+      "Text": "Ło... żeby ci ryja nie urwało. hehe",
+      "Next": "biedronka",
+      "Cebula": 10,
+      "Wstyd": -5,
+      "Portfel": 0,
+      "Reputacja": 0,
+      "ReactionText": "Sprytna cebula.",
+      "ReactionImage": "images/janusz_wyrzucilem.jpg"
+    },
+    {
+      "Text": "Otwierasz okno na -5°C 'dla przewietrzenia'",
+      "Next": "biedronka",
+      "Cebula": 15,
+      "Wstyd": -10,
+      "Portfel": 0,
+      "Reputacja": -10,
+      "ReactionText": "Babcie cię przeklinają.",
+      "ReactionImage": "images/janusz_przepraszam.jpg?v=1"
+    },
+    {
+      "Text": "Za moich czasów to ludzie mieli troszku kultury panie! Nie będzie mnie tu niemiec kaszlał na mordę",
+      "Next": "biedronka",
+      "Cebula": 15,
+      "Wstyd": -10,
+      "Portfel": 0,
+      "Reputacja": 10,
+      "ReactionText": "Duma, honor, to moje zasady.",
+      "ReactionImage": "images/janusz_wariatka.jpg"
+    }
+  ]
+},
+  {
+    "Id": "biedronka",
+    "Background": "images/biedronka.jpg",
+    "Text": "Biedronka. Ostatnia paczka parówek promocyjnych.",
+    "Choices": [
+      {
+        "Text": "Ja tu stałem od rana!",
+        "Next": "koniec",
+        "Cebula": 15,
+        "Wstyd": 20,
+        "Portfel": -4,
+        "Reputacja": -10
+      },
+      {
+        "Text": "Puszczam babcię",
+        "Next": "koniec",
+        "Cebula": -10,
+        "Wstyd": -5,
+        "Portfel": 0,
+        "Reputacja": 15
+      }
+    ]
+  },
+  {
+    "Id": "koniec",
+    "Background": "images/koniec.jpg",
+    "Text": "Koniec dnia. Grażyna liczy resztę.",
+    "Choices": []
+  }
+]

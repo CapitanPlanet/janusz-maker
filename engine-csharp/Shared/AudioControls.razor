@@ -1,0 +1,205 @@
+@using Microsoft.JSInterop
+@using System.Globalization
+@inject IJSRuntime JS
+@implements IDisposable
+
+<div class="audio-panel">
+    <div class="audio-row">
+        <button @onclick="ToggleVoiceMute" class="mute-btn" aria-label="voice">
+            @if (isVoiceMuted || voiceVolume == 0) { <span>🔇</span> }
+            else if (voiceVolume < 0.5) { <span>🔉</span> }
+            else { <span>🔊</span> }
+        </button>
+        <input type="range" min="0" max="1" step="0.01" value="@voiceVolume.ToString(CultureInfo.InvariantCulture)"
+               @oninput="OnVoiceVolumeInput" class="volume-slider sfx-slider" />
+    </div>
+
+    <div class="audio-row">
+        <button @onclick="ToggleMusicMute" class="mute-btn" aria-label="music">
+            @if (isMusicMuted || musicVolume == 0) { <span>🔇</span> }
+            else { <span>🎵</span> }
+        </button>
+        <input type="range" min="0" max="1" step="0.01" value="@musicVolume.ToString(CultureInfo.InvariantCulture)"
+               @oninput="OnMusicVolumeInput" class="volume-slider music-slider" />
+    </div>
+</div>
+
+@code {
+    private double voiceVolume = 0.7;
+    private double musicVolume = 0.3;
+    private bool isVoiceMuted = false;
+    private bool isMusicMuted = false;
+    private double lastVoiceVolume = 0.7;
+    private double lastMusicVolume = 0.3;
+
+    protected override void OnInitialized()
+    {
+        CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+        CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+    }
+
+    private async Task OnVoiceVolumeInput(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var val))
+        {
+            voiceVolume = Math.Round(val, 2);
+            isVoiceMuted = voiceVolume == 0;
+            await UpdateVoiceVolume();
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnMusicVolumeInput(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var val))
+        {
+            musicVolume = Math.Round(val, 2);
+            isMusicMuted = musicVolume == 0;
+            await UpdateMusicVolume();
+            StateHasChanged();
+        }
+    }
+
+    private async Task UpdateVoiceVolume()
+    {
+        if (voiceVolume > 0) lastVoiceVolume = voiceVolume;
+        isVoiceMuted = voiceVolume == 0;
+        try { await JS.InvokeVoidAsync("JanuszAudio.setVoiceVol", voiceVolume); } catch {}
+        try { await JS.InvokeVoidAsync("JanuszAudio.setSfxVol", voiceVolume); } catch {}
+    }
+
+    private async Task UpdateMusicVolume()
+    {
+        if (musicVolume > 0) lastMusicVolume = musicVolume;
+        isMusicMuted = musicVolume == 0;
+        try { await JS.InvokeVoidAsync("JanuszAudio.setMusicVol", musicVolume); } catch {}
+    }
+
+    private async Task ToggleVoiceMute()
+    {
+        if (isVoiceMuted) { voiceVolume = lastVoiceVolume; isVoiceMuted = false; }
+        else { lastVoiceVolume = voiceVolume; voiceVolume = 0; isVoiceMuted = true; }
+        await UpdateVoiceVolume();
+    }
+
+    private async Task ToggleMusicMute()
+    {
+        if (isMusicMuted) { musicVolume = lastMusicVolume; isMusicMuted = false; }
+        else { lastMusicVolume = musicVolume; musicVolume = 0; isMusicMuted = true; }
+        await UpdateMusicVolume();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try { await JS.InvokeVoidAsync("JanuszAudio.setMusicVol", musicVolume); } catch {}
+            try { await JS.InvokeVoidAsync("JanuszAudio.setVoiceVol", voiceVolume); } catch {}
+            try { await JS.InvokeVoidAsync("JanuszAudio.setSfxVol", voiceVolume); } catch {}
+        }
+    }
+
+    public void Dispose() { }
+}
+
+<style>
+    .audio-panel {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+        padding: 8px 0 0 0;
+        background: transparent;
+    }
+    .audio-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+    }
+    .mute-btn {
+        background: none;
+        border: 1px solid #3a3326;
+        border-radius: 4px;
+        font-size: 14px;
+        width: 28px;
+        height: 28px;
+        cursor: pointer;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .volume-slider {
+        flex: 1;
+        height: 6px;
+        -webkit-appearance: none;
+        appearance: none;
+        background: #111;
+        border: 1px solid #8b6f47;
+        border-radius: 3px;
+        touch-action: none;
+    }
+    .sfx-slider { accent-color: #ff3b30; }
+    .music-slider { accent-color: #00ff00; }
+    .volume-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 16px; height: 16px;
+        border-radius: 50%; border: 2px solid #1a1a1a;
+        background: #d4a017;
+    }
+    .sfx-slider::-webkit-slider-thumb { background: #ff3b30; }
+    .music-slider::-webkit-slider-thumb { background: #00ff00; }
+
+    /* MOBILE - JEDEN POD DRUGIM, DUŻY HITBOX */
+    @@media (max-width: 768px) {
+        .audio-panel {
+            gap: 12px;
+            padding: 12px 0 4px 0;
+        }
+        .audio-row {
+            flex-direction: row;
+            gap: 10px;
+            height: 44px; /* duży obszar na palec */
+            background: rgba(0,0,0,0.35);
+            border: 1px solid #2a241a;
+            border-radius: 8px;
+            padding: 0 8px;
+        }
+        .mute-btn {
+            width: 36px !important;
+            height: 36px !important;
+            font-size: 18px !important;
+            border: none !important;
+            background: transparent !important;
+        }
+        .volume-slider {
+            height: 14px !important; /* gruby pasek */
+            border-radius: 7px !important;
+            border-width: 1px !important;
+        }
+        .volume-slider::-webkit-slider-thumb {
+            width: 32px !important;
+            height: 32px !important;
+            margin-top: -9px; /* centruje na 14px tracku */
+            box-shadow: 0 0 0 4px rgba(0,0,0,0.4);
+        }
+        .volume-slider::-moz-range-thumb {
+            width: 32px !important;
+            height: 32px !important;
+            border: 3px solid #000;
+        }
+        /* większy obszar dotyku wokół suwaka */
+        .volume-slider::-webkit-slider-runnable-track {
+            height: 14px;
+        }
+        .audio-row {
+        overflow: visible; /* żeby czerwony/zielony nie był ucinany */
+        padding-right: 16px; /* miejsce na thumb na końcu */
+        }
+        .volume-slider {
+            width: calc(100% - 10px) !important;
+        }
+    }
+</style>

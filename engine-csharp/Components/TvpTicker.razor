@@ -1,0 +1,148 @@
+@using Microsoft.AspNetCore.Components
+
+<div class="tvp-ticker">
+    <div class="tvp-logo">
+        <img src="images/logow.jpg" alt="Janusz News" />
+    </div>
+    <div class="ticker-content">
+        <div class="ticker-text @fadeClass">
+            @currentNews
+        </div>
+    </div>
+</div>
+
+<style>
+.tvp-ticker {
+        position: fixed;
+        bottom: 5%;
+        left: 20%;
+        right: 20%;
+        height: 5%;
+        background: linear-gradient(90deg, #002364 0%, #002364 100%);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        font-family: Arial, Helvetica, sans-serif;
+        z-index: 1000;
+
+    }
+.tvp-ticker::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;        /* start od lewej */
+    width: 25%;     
+    height: 3px;
+    background: rgb(196, 1, 1);
+}
+.tvp-logo {
+        height: 100%;
+        padding: 15px;
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+        background: rgb(255, 255, 255);
+
+    }
+
+.tvp-logo img {
+        height: 30px;
+        width: auto;
+        object-fit: contain;
+    }
+
+.ticker-content {
+        flex: 1;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        padding: 0 20px;
+    }
+
+.ticker-text {
+        font-size: 17px;
+        font-weight: bold;
+        text-transform: uppercase;
+        text-align: center;
+        letter-spacing: 0.5px;
+        opacity: 0;
+        transition: opacity 0.8s ease-in-out;
+        font-family: Arial, Helvetica, sans-serif
+    }
+
+.ticker-text.visible {
+        opacity: 1;
+    }
+
+    @@media (max-width: 900px) {
+    .tvp-logo { padding: 0 10px; }
+    .tvp-logo img { height: 24px; }
+    .ticker-text { font-size: 13px; }
+    }
+</style>
+
+@code {
+    [Parameter] public int IntervalMs { get; set; } = 8000;
+    [Parameter] public int FadeMs { get; set; } = 800;
+
+    private string currentNews = "JANUSZ ZNALAZŁ 5 ZŁ NA CHODNIKU";
+    private string fadeClass = "visible";
+    private System.Timers.Timer? timer;
+    private Random rnd = new();
+
+    private List<string> newsy = new()
+    {
+        "PILNE: JANUSZ KUPIŁ CEBULĘ PO 2.99 - INFLACJA SPADA",
+        "SKANDAL: GRAŻYNA ZŁAPAŁA JANUSZA NA PIWIE O 10 RANO",
+        "NA ŻYWO: JANUSZ NEGOCJUJE CENĘ ZIEMNIAKÓW NA BAZARZE OD 3 GODZIN",
+        "EKSPERT TWIERDZI: KANAPKA ZROBIONA PRZEZ JANUSZA MA WIĘCEJ SMAKU NIŻ W RESTAURACJI",
+        "ALERT: JANUSZ WYGRAŁ KŁÓTNIE Z TEŚCIOWĄ - KRAJ W SZOKU",
+        "DONIESIENIA: JANUSZ NAPRAWIŁ KRAN MŁOTKIEM - DZIAŁA LEPIEJ NIŻ NOWY",
+        "BREAKING: GRAŻYNA KAZAŁA JANUSZOWI WYRZUCIĆ ŚMIECI - TEN TO ZROBIŁ",
+        "SONDAŻ: 98% POLAKÓW UWAŻA ŻE JANUSZ MA RACJĘ",
+        "UWAGA: JANUSZ OSZCZĘDZIŁ 50GR NA PROMOCJI - BUDŻET DOMOWY URATOWANY",
+        "RELACJA: JANUSZ TŁUMACZY WNUKOWI ŻE ZA JEGO CZASÓW BYŁO LEPIEJ",
+        "SZOK: JANUSZ ZNALAZŁ PARAGON Z 2018 I DOSTAŁ ZWROT",
+        "PILNE: SĄSIAD POŻYCZYŁ OD JANUSZA WIERTARKĘ I ODDAŁ - CUD",
+        "EKONOMIA: JANUSZ POLICZYŁ ŻE PIWO W SKLEPIE TAŃSZE O 10GR NIŻ W ŻABCE",
+        "KULTURA: JANUSZ OGLĄDA WIADOMOŚCI I KOMENTUJE GŁOŚNIEJ NIŻ TELEWIZOR",
+        "SPORT: JANUSZ PRZEBIEGŁ 10 METRÓW DO AUTOBUSU - FORMA ŻYCIA"
+    };
+
+    protected override void OnInitialized()
+    {
+        PickNews();
+        timer = new System.Timers.Timer(IntervalMs);
+        timer.Elapsed += async (s, e) =>
+        {
+            await InvokeAsync(async () =>
+            {
+                fadeClass = "";
+                StateHasChanged();
+                await Task.Delay(FadeMs);
+
+                PickNews();
+                fadeClass = "visible";
+                StateHasChanged();
+            });
+        };
+        timer.Start();
+    }
+
+    private void PickNews()
+    {
+        var newNews = currentNews;
+        while (newNews == currentNews && newsy.Count > 1)
+        {
+            newNews = newsy[rnd.Next(newsy.Count)];
+        }
+        currentNews = newNews;
+    }
+
+    public void Dispose()
+    {
+        timer?.Dispose();
+    }
+}

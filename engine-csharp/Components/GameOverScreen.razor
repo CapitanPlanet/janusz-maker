@@ -1,0 +1,17 @@
+@using JanuszSimulator.Models
+<div class="scene-text" style="text-align: center; border-color: #ff4444;">
+    <h3>KONIEC GRY</h3>
+    @foreach(var kv in Stats.Values)
+    {
+        var def = StatDefs.FirstOrDefault(s => s.id == kv.Key);
+        <p><b>@(def?.name?? kv.Key):</b> @kv.Value</p>
+    }
+</div>
+<button class="choice-btn" @onclick="OnReset" style="background: #d4a017; color: #000; font-weight: bold;">
+    ZAGRAJ PONOWNIE JANUSZ
+</button>
+@code {
+    [Parameter] public DynamicStats Stats { get; set; } = new();
+    [Parameter] public List<StatDef> StatDefs { get; set; } = new();
+    [Parameter] public EventCallback OnReset { get; set; }
+}

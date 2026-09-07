@@ -1,0 +1,23 @@
+[
+  {
+    "Id": "start222",
+    "SceneTitle": "Start",
+    "Background": "images/bg_tutorial.webp",
+    "Text": "Początek dnia2",
+    "Choices": [
+      {
+        "Text": "Nowy wybór",
+        "Next": "start222",
+        "Stats": {
+          "CEBULA": 0,
+          "WSTYD": 0,
+          "PORTFEL": 0,
+          "REPUTACJA": 0
+        },
+        "ReactionText": "",
+        "ReactionImage": "",
+        "SoundFile": ""
+      }
+    ]
+  }
+]

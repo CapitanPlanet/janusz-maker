@@ -1,0 +1,27 @@
+@using JanuszSimulator.Models
+<div class="panel-janusza">
+    <h3>🔧 PANEL JANUSZA 🔧</h3>
+    <hr class="dotted" />
+    <label><input type="checkbox" @bind="SoundEnabled" /> Dźwięk WŁĄCZONY</label>
+    <div class="volume">
+        <label>Głośność:</label>
+        <input type="range" min="0" max="100" @bind="Volume" @bind:event="oninput" />
+    </div>
+    <div class="stats">
+        @foreach(var kv in Stats.Values)
+        {
+            var def = StatDefs.FirstOrDefault(s => s.id == kv.Key);
+            <p><b>@(def?.name?? kv.Key):</b> @kv.Value</p>
+        }
+    </div>
+    <div class="footer-quote">"Jak nie działa, to puknij młotkiem"</div>
+</div>
+@code {
+    [Parameter] public DynamicStats Stats { get; set; } = new();
+    [Parameter] public List<StatDef> StatDefs { get; set; } = new();
+    [Parameter] public bool SoundEnabled { get; set; }
+    [Parameter] public EventCallback<bool> SoundEnabledChanged { get; set; }
+    [Parameter] public int Volume { get; set; }
+    [Parameter] public EventCallback<int> VolumeChanged { get; set; }
+    [Parameter] public EventCallback<string> OnPlaySound { get; set; }
+}

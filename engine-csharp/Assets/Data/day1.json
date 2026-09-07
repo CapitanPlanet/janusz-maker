@@ -1,0 +1,83 @@
+[
+  {
+    "Background": "images/bg_tutorial.webp",
+    "Choices": [
+      {
+        "Next": "koniec_dnia_1",
+        "ReactionText": "",
+        "Stats": {
+          "CEBULA": 0,
+          "PORTFEL": 0,
+          "REPUTACJA": 0,
+          "WSTYD": 0
+        },
+        "Text": "Idę do roboty"
+      },
+      {
+        "Text": "Nowy wybór",
+        "Next": "koniec_dnia_1",
+        "Stats": {
+          "CEBULA": 0,
+          "WSTYD": 0,
+          "PORTFEL": 0,
+          "REPUTACJA": 0
+        },
+        "ReactionText": "",
+        "ReactionImage": "",
+        "SoundFile": ""
+      },
+      {
+        "Text": "Nowy wybór",
+        "Next": "koniec_dnia_1",
+        "Stats": {
+          "CEBULA": 0,
+          "WSTYD": 0,
+          "PORTFEL": 0,
+          "REPUTACJA": 0
+        },
+        "ReactionText": "",
+        "ReactionImage": "",
+        "SoundFile": ""
+      }
+    ],
+    "Id": "start",
+    "SceneTitle": "Początek",
+    "Text": "Jezu ale mam kaca... Muszę iść do roboty i nie pierdolić się w tańcu."
+  },
+  {
+    "Id": "koniec_dnia_1",
+    "SceneTitle": "KONIEC DNIA 1",
+    "Background": "images/bg_tutorial.jpg",
+    "Text": "Koniec dnia. Idziesz spać.",
+    "Choices": [
+      {
+        "Text": "Śpij",
+        "Next": "END_DAY",
+        "ReactionText": "",
+        "ReactionImage": "",
+        "SoundFile": "",
+        "Stats": {
+          "CEBULA": 0,
+          "WSTYD": 0,
+          "PORTFEL": 0,
+          "REPUTACJA": 0
+        }
+      }
+    ],
+    "IsEndDay": true,
+    "Type": "end_of_day",
+    "Day": 1,
+    "NextDayId": "day2",
+    "NextDay": "day2",
+    "Transfers": {
+      "keep_flags": [],
+      "keep_stats": [
+        "CEBULA",
+        "WSTYD",
+        "PORTFEL",
+        "REPUTACJA"
+      ],
+      "summary_text": ""
+    }
+  }
+]
