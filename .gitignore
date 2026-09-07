@@ -1,0 +1,14 @@
+bin/
+obj/
+publish/
+dist/
+node_modules/
+_old_images_backup/
+wwwroot/lib/
+*.exe
+*.zip
+.vs/
+.idea/
+# dziwne pliki co masz
+et\ --hard*
+*.lscache
