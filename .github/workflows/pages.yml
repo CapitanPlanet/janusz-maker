@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy Blazor to GitHub Pages
 
 on:
   push:
@@ -15,14 +15,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Create docs
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Publish Blazor WASM
         run: |
-          mkdir -p docs
-          echo '<h1>janusz-maker - dziala!</h1><p>Pages dziala, teraz wrzucamy silnik.</p>' > docs/index.html
+          cd engine-csharp
+          dotnet publish -c Release -o ../publish
+      - name: Fix base href for GitHub Pages
+        run: |
+          # GitHub Pages jest pod /janusz-maker/, nie pod /
+          sed -i 's|<base href="/" />|<base href="/janusz-maker/" />|g' publish/wwwroot/index.html
+          touch publish/wwwroot/.nojekyll
+          # Kopiujemy index jako 404 dla SPA routing
+          cp publish/wwwroot/index.html publish/wwwroot/404.html
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./docs
+          path: ./publish/wwwroot
   deploy:
     environment:
       name: github-pages
