@@ -1,0 +1,1 @@
+# Tu skopiuj zawartość janusz-editor-wails

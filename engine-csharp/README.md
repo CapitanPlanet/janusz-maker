@@ -1,0 +1,1 @@
+# Tu skopiuj zawartość C:\Users\MD-Core\JanuszSimulator
